@@ -1,12 +1,55 @@
 import Link from "next/link";
 
-import { ToolCard } from "@/components/tools/tool-card";
+import { siteConfig } from "@/config/site";
 import {
   getPublishedResourcesPaginated,
+  type ResourceListFilters,
+  type ResourceSort,
 } from "@/db/queries/resources";
-import { siteConfig } from "@/config/site";
+import { createLogoStorage } from "@/lib/storage/logo-storage";
+import { ToolCard } from "@/components/tools/tool-card";
 
 const PAGE_SIZE = 24;
+
+const RESOURCE_TYPES = [
+  "tool",
+  "model",
+  "agent",
+  "mcp_server",
+  "skill",
+  "workflow",
+  "automation",
+  "dataset",
+  "sdk",
+  "api",
+  "framework",
+  "infrastructure",
+  "hardware",
+  "robotics",
+  "other",
+] as const;
+
+const PRICING_MODELS = [
+  "free",
+  "freemium",
+  "paid",
+  "open_source",
+  "contact",
+  "unknown",
+] as const;
+
+const SORT_OPTIONS = [
+  "newest",
+  "popular",
+  "updated",
+] as const;
+
+type SearchParams = {
+  search?: string;
+  type?: string;
+  pricingModel?: string;
+  sort?: string;
+};
 
 function getPricingLabel(
   pricingModel:
@@ -75,11 +118,117 @@ function getCategoryLabel(
   return labels[type];
 }
 
-export default async function ToolsPage() {
+function parseSearchParam(
+  value: string | undefined,
+): string | undefined {
+  const normalized = value?.trim();
+
+  return normalized || undefined;
+}
+
+function parseType(
+  value: string | undefined,
+): ResourceListFilters["type"] | undefined {
+  if (!value) return undefined;
+
+  return (RESOURCE_TYPES as readonly string[]).includes(value)
+    ? (value as ResourceListFilters["type"])
+    : undefined;
+}
+
+function parsePricingModel(
+  value: string | undefined,
+): ResourceListFilters["pricingModel"] | undefined {
+  if (!value) return undefined;
+
+  return (PRICING_MODELS as readonly string[]).includes(value)
+    ? (value as ResourceListFilters["pricingModel"])
+    : undefined;
+}
+
+function parseSort(value: string | undefined): ResourceSort {
+  if (
+    value &&
+    (SORT_OPTIONS as readonly string[]).includes(value)
+  ) {
+    return value as ResourceSort;
+  }
+
+  return "newest";
+}
+
+function buildToolsUrl(
+  params: SearchParams,
+): string {
+  const searchParams = new URLSearchParams();
+
+  if (params.search) {
+    searchParams.set("search", params.search);
+  }
+
+  if (params.type) {
+    searchParams.set("type", params.type);
+  }
+
+  if (params.pricingModel) {
+    searchParams.set("pricingModel", params.pricingModel);
+  }
+
+  if (params.sort && params.sort !== "newest") {
+    searchParams.set("sort", params.sort);
+  }
+
+  const query = searchParams.toString();
+
+  return query
+    ? `${siteConfig.links.tools}?${query}`
+    : siteConfig.links.tools;
+}
+
+export default async function ToolsPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+
+  const search = parseSearchParam(params.search);
+  const type = parseType(params.type);
+  const pricingModel = parsePricingModel(
+    params.pricingModel,
+  );
+  const sort = parseSort(params.sort);
+
+  const logoStorage = createLogoStorage();
+
   const result = await getPublishedResourcesPaginated(
     PAGE_SIZE,
     0,
+    {
+      search,
+      type,
+      pricingModel,
+    },
+    sort,
   );
+
+  const filterLinks = [
+    ["All", undefined],
+    ["Open Source", "open_source"],
+    ["Free", "free"],
+    ["Freemium", "freemium"],
+    ["Paid", "paid"],
+  ] as const;
+
+  const resourceTypes = [
+    ["AI Tools", "tool"],
+    ["AI Models", "model"],
+    ["AI Agents", "agent"],
+    ["MCP Servers", "mcp_server"],
+    ["Workflows", "workflow"],
+    ["APIs", "api"],
+    ["Frameworks", "framework"],
+  ] as const;
 
   return (
     <main className="min-h-screen bg-white text-[#171717]">
@@ -100,7 +249,35 @@ export default async function ToolsPage() {
             </p>
           </div>
 
-          <div className="mt-10">
+          <form
+            action={siteConfig.links.tools}
+            method="get"
+            className="mt-10"
+          >
+            {type && (
+              <input
+                type="hidden"
+                name="type"
+                value={type}
+              />
+            )}
+
+            {pricingModel && (
+              <input
+                type="hidden"
+                name="pricingModel"
+                value={pricingModel}
+              />
+            )}
+
+            {sort !== "newest" && (
+              <input
+                type="hidden"
+                name="sort"
+                value={sort}
+              />
+            )}
+
             <label
               htmlFor="tool-search"
               className="sr-only"
@@ -111,41 +288,52 @@ export default async function ToolsPage() {
             <div className="flex h-12 w-full max-w-3xl items-center rounded-lg border border-[#d1d5db] bg-white px-4 shadow-sm">
               <input
                 id="tool-search"
+                name="search"
                 type="search"
+                defaultValue={search ?? ""}
                 placeholder="Search AI tools..."
                 className="w-full bg-transparent text-sm text-[#171717] outline-none placeholder:text-[#9ca3af]"
               />
+
+              <button
+                type="submit"
+                className="ml-3 rounded-md bg-[#0f766e] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              >
+                Search
+              </button>
             </div>
-          </div>
+          </form>
         </div>
       </section>
 
       <section className="border-b border-[#e5e7eb] bg-[#f8fafc]">
         <div className="mx-auto max-w-7xl px-6 py-6 sm:px-8 lg:px-12">
           <div className="flex flex-wrap gap-2">
-            {[
-              ["All", ""],
-              ["Open Source", "open_source"],
-              ["Free", "free"],
-              ["Freemium", "freemium"],
-              ["Paid", "paid"],
-            ].map(([label, value], index) => (
-              <Link
-                key={label}
-                href={
-                  value
-                    ? `${siteConfig.links.tools}?pricingModel=${value}`
-                    : siteConfig.links.tools
-                }
-                className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                  index === 0
-                    ? "bg-[#0f766e] text-white"
-                    : "border border-[#d1d5db] bg-white text-[#4b5563] hover:bg-[#f1f5f9]"
-                }`}
-              >
-                {label}
-              </Link>
-            ))}
+            {filterLinks.map(([label, value]) => {
+              const isActive =
+                value === undefined
+                  ? !pricingModel
+                  : pricingModel === value;
+
+              return (
+                <Link
+                  key={label}
+                  href={buildToolsUrl({
+                    search,
+                    type,
+                    pricingModel: value,
+                    sort,
+                  })}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                    isActive
+                      ? "bg-[#0f766e] text-white"
+                      : "border border-[#d1d5db] bg-white text-[#4b5563] hover:bg-[#f1f5f9]"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -158,23 +346,28 @@ export default async function ToolsPage() {
             </h2>
 
             <div className="mt-4 flex flex-col gap-2">
-              {[
-                ["AI Tools", "tool"],
-                ["AI Models", "model"],
-                ["AI Agents", "agent"],
-                ["MCP Servers", "mcp_server"],
-                ["Workflows", "workflow"],
-                ["APIs", "api"],
-                ["Frameworks", "framework"],
-              ].map(([label, type]) => (
-                <Link
-                  key={type}
-                  href={`${siteConfig.links.tools}?type=${type}`}
-                  className="rounded-lg px-3 py-2 text-left text-sm text-[#6b7280] transition-colors hover:bg-[#f8fafc] hover:text-[#0f766e]"
-                >
-                  {label}
-                </Link>
-              ))}
+              {resourceTypes.map(([label, resourceType]) => {
+                const isActive = type === resourceType;
+
+                return (
+                  <Link
+                    key={resourceType}
+                    href={buildToolsUrl({
+                      search,
+                      type: resourceType,
+                      pricingModel,
+                      sort,
+                    })}
+                    className={`rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                      isActive
+                        ? "bg-[#f0fdfa] font-medium text-[#0f766e]"
+                        : "text-[#6b7280] hover:bg-[#f8fafc] hover:text-[#0f766e]"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
             </div>
           </aside>
 
@@ -187,26 +380,72 @@ export default async function ToolsPage() {
 
                 <p className="mt-1 text-sm text-[#6b7280]">
                   {result.total} published resources
+                  {search ? ` matching “${search}”` : ""}
                 </p>
               </div>
 
-              <select
-                aria-label="Sort resources"
-                className="h-10 rounded-lg border border-[#d1d5db] bg-white px-3 text-sm text-[#171717] outline-none"
-                defaultValue="newest"
+              <form
+                action={siteConfig.links.tools}
+                method="get"
               >
-                <option value="newest">
-                  Newest
-                </option>
+                {search && (
+                  <input
+                    type="hidden"
+                    name="search"
+                    value={search}
+                  />
+                )}
 
-                <option value="popular">
-                  Most Popular
-                </option>
+                {type && (
+                  <input
+                    type="hidden"
+                    name="type"
+                    value={type}
+                  />
+                )}
 
-                <option value="updated">
-                  Recently Updated
-                </option>
-              </select>
+                {pricingModel && (
+                  <input
+                    type="hidden"
+                    name="pricingModel"
+                    value={pricingModel}
+                  />
+                )}
+
+                <label
+                  className="sr-only"
+                  htmlFor="sort"
+                >
+                  Sort resources
+                </label>
+
+                <select
+                  id="sort"
+                  name="sort"
+                  aria-label="Sort resources"
+                  defaultValue={sort}
+                  className="h-10 rounded-lg border border-[#d1d5db] bg-white px-3 text-sm text-[#171717] outline-none"
+                >
+                  <option value="newest">
+                    Newest
+                  </option>
+
+                  <option value="popular">
+                    Most Popular
+                  </option>
+
+                  <option value="updated">
+                    Recently Updated
+                  </option>
+                </select>
+
+                <button
+                  type="submit"
+                  className="ml-2 h-10 rounded-lg border border-[#d1d5db] bg-white px-3 text-sm font-medium text-[#374151] hover:bg-[#f8fafc]"
+                >
+                  Apply
+                </button>
+              </form>
             </div>
 
             {result.data.length > 0 ? (
@@ -227,7 +466,11 @@ export default async function ToolsPage() {
                       pricing: getPricingLabel(
                         resource.pricingModel,
                       ),
-                      logo: resource.logoUrl ?? undefined,
+                      logo: resource.logoStoragePath
+                        ? logoStorage.getPublicUrl(
+                            resource.logoStoragePath,
+                          )
+                        : resource.logoUrl ?? undefined,
                       verified: resource.isVerified,
                     }}
                   />
@@ -236,33 +479,21 @@ export default async function ToolsPage() {
             ) : (
               <div className="mt-8 rounded-xl border border-dashed border-[#d1d5db] px-6 py-16 text-center">
                 <h3 className="text-lg font-semibold">
-                  Help build the AI ecosystem directory.
+                  No AI resources found.
                 </h3>
 
                 <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#6b7280]">
-                  Know an AI tool, model, agent, MCP server,
-                  workflow, dataset, API, framework, or another
-                  useful AI resource? Suggest it for ToolsTok.
-                  You can also contribute directly to the
-                  open-source project on GitHub.
+                  Try a different search or remove one of
+                  the active filters.
                 </p>
 
-                <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <div className="mt-7">
                   <Link
-                    href={siteConfig.links.submit}
-                    className="inline-flex h-11 items-center justify-center rounded-lg bg-[#0f766e] px-5 text-sm font-medium text-white transition-opacity hover:opacity-90"
-                  >
-                    Suggest a Resource
-                  </Link>
-
-                  <a
-                    href={siteConfig.social.github}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={siteConfig.links.tools}
                     className="inline-flex h-11 items-center justify-center rounded-lg border border-[#d1d5db] bg-white px-5 text-sm font-medium text-[#374151] transition-colors hover:bg-[#f8fafc]"
                   >
-                    Contribute on GitHub
-                  </a>
+                    Clear filters
+                  </Link>
                 </div>
               </div>
             )}

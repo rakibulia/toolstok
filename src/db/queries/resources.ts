@@ -18,6 +18,8 @@ export type ResourceListFilters = {
   verified?: boolean;
 };
 
+export type ResourceSort = "newest" | "popular" | "updated";
+
 function buildPublishedResourceConditions(
   filters: ResourceListFilters = {},
 ) {
@@ -62,20 +64,36 @@ function buildPublishedResourceConditions(
   return and(...conditions);
 }
 
+function getResourceSort(sort: ResourceSort = "newest") {
+  switch (sort) {
+    case "popular":
+      return desc(resources.viewCount);
+
+    case "updated":
+      return desc(resources.updatedAt);
+
+    case "newest":
+    default:
+      return desc(resources.createdAt);
+  }
+}
+
 export async function getPublishedResources(
   filters: ResourceListFilters = {},
+  sort: ResourceSort = "newest",
 ) {
   return db
     .select()
     .from(resources)
     .where(buildPublishedResourceConditions(filters))
-    .orderBy(desc(resources.createdAt));
+    .orderBy(getResourceSort(sort));
 }
 
 export async function getPublishedResourcesPaginated(
   limit: number,
   offset: number,
   filters: ResourceListFilters = {},
+  sort: ResourceSort = "newest",
 ) {
   const conditions =
     buildPublishedResourceConditions(filters);
@@ -85,7 +103,7 @@ export async function getPublishedResourcesPaginated(
       .select()
       .from(resources)
       .where(conditions)
-      .orderBy(desc(resources.createdAt))
+      .orderBy(getResourceSort(sort))
       .limit(limit)
       .offset(offset),
 
