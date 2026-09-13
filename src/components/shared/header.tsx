@@ -1,7 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
+
 import { MobileMenu } from "@/components/shared/mobile-menu";
 import { siteConfig } from "@/config/site";
+import { getCurrentToolsUser } from "@/lib/auth/current-tools-user";
+import { logout } from "@/app/account/actions";
 
 const navigation = [
   {
@@ -22,7 +25,9 @@ const navigation = [
   },
 ];
 
-export function Header() {
+export async function Header() {
+  const user = await getCurrentToolsUser();
+
   return (
     <header className="sticky top-0 z-50 border-b border-[#e5e7eb] bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-12">
@@ -74,7 +79,42 @@ export function Header() {
             Submit a tool
           </Link>
 
-          <MobileMenu />
+          {user ? (
+            <div className="hidden items-center gap-3 sm:flex">
+              <Link
+                href={siteConfig.links.account}
+                className="text-sm font-medium text-[#4b5563] transition-colors hover:text-[#0f766e]"
+              >
+                Account
+              </Link>
+
+              <form action={logout}>
+                <button
+                  type="submit"
+                  className="h-9 rounded-lg border border-[#d1d5db] px-4 text-sm font-medium text-[#374151] transition-colors hover:bg-[#f8fafc]"
+                >
+                  Log out
+                </button>
+              </form>
+            </div>
+          ) : (
+            <div className="hidden items-center gap-3 sm:flex">
+              <Link
+                href={siteConfig.links.login}
+                className="text-sm font-medium text-[#4b5563] transition-colors hover:text-[#0f766e]"
+              >
+                Log in
+              </Link>
+
+              <Link
+                href={siteConfig.links.signup}
+                className="h-9 rounded-lg bg-[#0f766e] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              >
+                Join Free
+              </Link>
+            </div>
+          )}
+          <MobileMenu isLoggedIn={Boolean(user)} logoutAction={logout} />
         </div>
       </div>
     </header>

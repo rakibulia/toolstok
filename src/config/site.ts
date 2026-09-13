@@ -2,7 +2,9 @@
 
 export const siteConfig = {
   name: env.NEXT_PUBLIC_SITE_NAME,
+
   url: env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, ""),
+
   description: env.NEXT_PUBLIC_SITE_DESCRIPTION,
 
   links: {
@@ -13,14 +15,18 @@ export const siteConfig = {
     compare: "/compare",
     search: "/search",
     submit: "/submit",
+
+    login: "/login",
+    signup: "/signup",
+    account: "/account",
   },
 
   social: {
-    github: "https://github.com/rakibuli10/toolstok",
+    github: "https://github.com/rakibulia/toolstok",
     facebook: "https://facebook.com/toolstokAI",
     youtube: "https://youtube.com/@toolstok",
-    x: "https://x.com/OpenBlockOS",
+    x: "",
     instagram: "",
-    telegram: "https://t.me/OpenBlockOS",
+    telegram: "",
   },
 } as const;

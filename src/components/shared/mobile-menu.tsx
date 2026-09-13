@@ -28,7 +28,15 @@ const navigation = [
   },
 ];
 
-export function MobileMenu() {
+type MobileMenuProps = {
+  isLoggedIn: boolean;
+  logoutAction: () => void;
+};
+
+export function MobileMenu({
+  isLoggedIn,
+  logoutAction,
+}: MobileMenuProps) {
   const [open, setOpen] = useState(false);
 
   function closeMenu() {
@@ -84,6 +92,45 @@ export function MobileMenu() {
               >
                 Submit a tool
               </Link>
+
+              {isLoggedIn ? (
+                <div className="mt-3 flex flex-col gap-2">
+                  <Link
+                    href={siteConfig.links.account}
+                    onClick={closeMenu}
+                    className="flex h-11 items-center justify-center rounded-lg border border-[#d1d5db] px-5 font-medium text-[#374151] transition-colors hover:bg-[#f8fafc]"
+                  >
+                    Account
+                  </Link>
+
+                  <form action={logoutAction}>
+                    <button
+                      type="submit"
+                      className="flex h-11 w-full items-center justify-center rounded-lg border border-[#d1d5db] px-5 font-medium text-[#374151] transition-colors hover:bg-[#f8fafc]"
+                    >
+                      Log out
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className="mt-3 flex flex-col gap-2">
+                  <Link
+                    href={siteConfig.links.login}
+                    onClick={closeMenu}
+                    className="flex h-11 items-center justify-center rounded-lg border border-[#d1d5db] px-5 font-medium text-[#374151] transition-colors hover:bg-[#f8fafc]"
+                  >
+                    Log in
+                  </Link>
+
+                  <Link
+                    href={siteConfig.links.signup}
+                    onClick={closeMenu}
+                    className="flex h-11 items-center justify-center rounded-lg bg-[#0f766e] px-5 font-medium text-white transition-opacity hover:opacity-90"
+                  >
+                    Join free
+                  </Link>
+                </div>
+              )}
             </div>
           </nav>
         </div>
