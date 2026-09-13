@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import { resolveLogo } from "@/lib/logos";
 
 dotenv.config({
   path: ".env.local",
@@ -14,6 +13,8 @@ async function seed() {
     resourceTags,
     tags,
   } = await import("@/db/schema");
+  const { refreshResourceLogo } =
+    await import("@/services/logo-service");
 
   const seedResources = [
     {
@@ -214,6 +215,7 @@ async function seed() {
         set: {
           name: category.name,
           description: category.description,
+          updatedAt: new Date(),
         },
       })
       .returning();
@@ -240,6 +242,7 @@ async function seed() {
         target: tags.slug,
         set: {
           name: tagName,
+          updatedAt: new Date(),
         },
       })
       .returning();
@@ -253,25 +256,16 @@ async function seed() {
   // Resources
   // ---------------------------------------------------------------------------
 
-  const resourceValues = [];
+  const resourceValues: Array<
+    typeof resources.$inferInsert
+  > = [];
 
-for (const resource of seedResources) {
-  const logo = resource.websiteUrl
-    ? await resolveLogo(resource.websiteUrl)
-    : null;
-
-  resourceValues.push({
-    ...resource,
-    domain: logo?.domain ?? null,
-    logoUrl: logo?.logoUrl ?? null,
-    logoSource:
-      logo?.source ?? "unknown",
-    logoUpdatedAt: logo
-      ? new Date()
-      : null,
-    status: "published" as const,
-  });
-}
+  for (const resource of seedResources) {
+    resourceValues.push({
+      ...resource,
+      status: "published" as const,
+    });
+  }
 
   const insertedResources: (typeof resources.$inferSelect)[] =
     [];
@@ -283,18 +277,62 @@ for (const resource of seedResources) {
       .onConflictDoUpdate({
         target: resources.slug,
         set: {
-          domain: resource.domain,
-          logoUrl: resource.logoUrl,
-          logoSource: resource.logoSource,
-          logoUpdatedAt:
-            resource.logoUpdatedAt,
+          type: resource.type,
+          name: resource.name,
+          tagline: resource.tagline,
+          description: resource.description,
+          websiteUrl: resource.websiteUrl,
+          repositoryUrl: resource.repositoryUrl,
+          pricingModel: resource.pricingModel,
+          sourceModel: resource.sourceModel,
+          isVerified: resource.isVerified,
+          status: resource.status,
           updatedAt: new Date(),
         },
       })
       .returning();
 
-    if (result[0]) {
-      insertedResources.push(result[0]);
+    if (!result[0]) {
+      continue;
+    }
+
+    const savedResource = result[0];
+
+    insertedResources.push(savedResource);
+
+    // Only resolve and store a logo when this resource does not
+    // already have a platform-managed logo.
+    if (
+      savedResource.websiteUrl &&
+      !savedResource.logoStoragePath
+    ) {
+      console.log(
+        `Resolving logo: ${savedResource.name}...`,
+      );
+
+      try {
+        const logoResult =
+          await refreshResourceLogo(savedResource.id);
+
+        if (logoResult.logoStoragePath) {
+          console.log(
+            `Logo stored: ${savedResource.name} → ${logoResult.logoStoragePath}`,
+          );
+        } else {
+          console.log(
+            `Logo unavailable: ${savedResource.name}`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          `Logo refresh failed for ${savedResource.name}:`,
+          error,
+        );
+      }
+    } else if (savedResource.logoStoragePath) {
+      console.log(
+        `Logo preserved: ${savedResource.name} → ${savedResource.logoStoragePath}`,
+      );
     }
   }
 
@@ -486,14 +524,10 @@ for (const resource of seedResources) {
   );
 }
 
-seed()
-  .catch((error) => {
-    console.error(
-      "ToolsTok seed failed.",
-    );
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(() => {
-    process.exit(0);
-  });
+seed().catch((error) => {
+  console.error(
+    "ToolsTok seed failed.",
+  );
+  console.error(error);
+  process.exitCode = 1;
+});

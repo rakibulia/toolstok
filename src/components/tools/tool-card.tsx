@@ -7,7 +7,7 @@ export type ToolCardData = {
   description: string;
   category: string;
   pricing: "Free" | "Freemium" | "Paid" | "Open Source";
-  logo?: string;
+  logo?: string | null;
   tags?: string[];
   verified?: boolean;
 };
@@ -16,25 +16,39 @@ type ToolCardProps = {
   tool: ToolCardData;
 };
 
+function ToolLogo({ tool }: ToolCardProps) {
+  const initial = tool.name.trim().charAt(0).toUpperCase();
+
+  if (!tool.logo) {
+    return (
+      <span
+        className="text-lg font-semibold text-[#0f766e]"
+        aria-hidden="true"
+      >
+        {initial}
+      </span>
+    );
+  }
+
+  return (
+    <Image
+      src={tool.logo}
+      alt={`${tool.name} logo`}
+      width={40}
+      height={40}
+      className="h-10 w-10 object-contain"
+      unoptimized
+    />
+  );
+}
+
 export function ToolCard({ tool }: ToolCardProps) {
   return (
     <article className="group flex h-full flex-col rounded-xl border border-[#e5e7eb] bg-white p-5 transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#e5e7eb] bg-[#f8fafc]">
-            {tool.logo ? (
-              <Image
-                src={tool.logo}
-                alt={`${tool.name} logo`}
-                width={40}
-                height={40}
-                className="h-10 w-10 object-contain"
-              />
-            ) : (
-              <span className="text-lg font-semibold text-[#0f766e]">
-                {tool.name.charAt(0).toUpperCase()}
-              </span>
-            )}
+            <ToolLogo tool={tool} />
           </div>
 
           <div className="min-w-0">
