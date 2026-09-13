@@ -1,8 +1,11 @@
 import Link from "next/link";
 
 import { siteConfig } from "@/config/site";
+import { getCurrentToolsUser } from "@/lib/auth/current-tools-user";
 
-export function Hero() {
+export async function Hero() {
+  const user = await getCurrentToolsUser();
+
   return (
     <section className="border-b border-[#e5e7eb] bg-white">
       <div className="mx-auto flex min-h-[620px] max-w-7xl flex-col items-center justify-center px-6 py-24 text-center sm:px-8 lg:px-12">
@@ -24,12 +27,25 @@ export function Hero() {
             </Link>
 
             <Link
-             href={siteConfig.links.signup}
+              href={siteConfig.links.compare}
               className="flex h-12 flex-1 items-center justify-center rounded-lg border border-[#d1d5db] bg-white px-6 font-medium text-[#171717] transition-colors hover:bg-[#f8fafc]"
             >
-              Join free
+              Compare AI tools
             </Link>
           </div>
+
+          {!user && (
+            <p className="mt-5 text-sm text-[#6b7280]">
+              Join the community and help build the open AI ecosystem.
+              {" "}
+              <Link
+                href={siteConfig.links.signup}
+                className="font-medium text-[#0f766e] hover:underline"
+              >
+                Join free
+              </Link>
+            </p>
+          )}
         </div>
 
         <div className="mt-16 w-full max-w-3xl">

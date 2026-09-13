@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { siteConfig } from "@/config/site";
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons";
 
 import {
   login,
@@ -33,7 +33,7 @@ export function LoginForm() {
 
   return (
     <div className="mt-8">
-      <GoogleSignInButton />
+     <SocialSignInButtons />
 
       <div className="my-6 flex items-center gap-3">
         <div className="h-px flex-1 bg-[#e5e7eb]" />

@@ -25,3 +25,24 @@ export async function signInWithGoogle() {
 
   redirect(data.url);
 }
+
+export async function signInWithGitHub() {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "github",
+    options: {
+      redirectTo: `${env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data.url) {
+    throw new Error("GitHub sign-in could not be started.");
+  }
+
+  redirect(data.url);
+}
