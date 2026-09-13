@@ -38,27 +38,43 @@ export function ToolCard({ tool }: ToolCardProps) {
           </div>
 
           <div className="min-w-0">
-            <Link
-              href={`/tools/${tool.slug}`}
-              className="font-semibold text-[#171717] hover:text-[#0f766e]"
-            >
-              {tool.name}
-            </Link>
+            <div className="flex items-center gap-1.5">
+              <Link
+                href={`/tools/${tool.slug}`}
+                className="font-semibold text-[#171717] hover:text-[#0f766e]"
+              >
+                {tool.name}
+              </Link>
+
+              {tool.verified && (
+                <span
+                  className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#16a34a] text-white"
+                  title="Verified resource"
+                  aria-label="Verified resource"
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                    className="h-3 w-3"
+                  >
+                    <path
+                      d="M4 8.2 6.6 10.7 12 5.4"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              )}
+            </div>
 
             <p className="mt-0.5 text-xs text-[#6b7280]">
               {tool.category}
             </p>
           </div>
         </div>
-
-        {tool.verified && (
-          <span
-            className="shrink-0 rounded-full bg-[#ecfdf5] px-2 py-1 text-xs font-medium text-[#047857]"
-            title="Verified"
-          >
-            Verified
-          </span>
-        )}
       </div>
 
       <p className="mt-4 line-clamp-3 text-sm leading-6 text-[#6b7280]">

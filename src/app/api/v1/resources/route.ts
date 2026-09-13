@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
 
 import { rateLimitConfig } from "@/config/rate-limit";
-import { getPublishedResourcesPaginated } from "@/db/queries/resources";
+import {
+  getPublishedResourcesPaginated,
+  type ResourceListFilters,
+} from "@/db/queries/resources";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { requireUser } from "@/lib/auth/guards";
 import { rateLimiter } from "@/lib/rate-limit";
@@ -11,18 +14,19 @@ import type {
   PaginationMeta,
 } from "@/types/api";
 import { paginationSchema } from "@/validation/api/pagination";
+import { resourceListFiltersSchema } from "@/validation/resource-filters";
 import { createResourceSchema } from "@/validation/resource";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
 
-    const parsed = paginationSchema.safeParse({
+    const paginationParsed = paginationSchema.safeParse({
       page: searchParams.get("page") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
     });
 
-    if (!parsed.success) {
+    if (!paginationParsed.success) {
       return apiError(
         "INVALID_PAGINATION",
         "Page must be at least 1 and limit must be between 1 and 100.",
@@ -30,13 +34,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { page, limit } = parsed.data;
+    const filtersParsed =
+      resourceListFiltersSchema.safeParse({
+        search: searchParams.get("search") ?? undefined,
+        type: searchParams.get("type") ?? undefined,
+        pricingModel:
+          searchParams.get("pricingModel") ?? undefined,
+        sourceModel:
+          searchParams.get("sourceModel") ?? undefined,
+        verified:
+          searchParams.get("verified") ?? undefined,
+      });
+
+    if (!filtersParsed.success) {
+      return apiError(
+        "INVALID_FILTERS",
+        "One or more resource filters are invalid.",
+        400,
+      );
+    }
+
+    const { page, limit } = paginationParsed.data;
+
+    const filters: ResourceListFilters =
+      filtersParsed.data;
+
     const offset = (page - 1) * limit;
 
-    const result = await getPublishedResourcesPaginated(
-      limit,
-      offset,
-    );
+    const result =
+      await getPublishedResourcesPaginated(
+        limit,
+        offset,
+        filters,
+      );
 
     const meta: PaginationMeta = {
       page,
@@ -103,7 +133,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parsed = createResourceSchema.safeParse(body);
+    const parsed =
+      createResourceSchema.safeParse(body);
 
     if (!parsed.success) {
       return apiError(
@@ -126,7 +157,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (
       error instanceof Error &&
-      error.message === "Authentication required."
+      error.message ===
+        "Authentication required."
     ) {
       return apiError(
         "UNAUTHORIZED",

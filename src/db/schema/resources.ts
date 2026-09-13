@@ -56,6 +56,17 @@ export const sourceModelEnum = pgEnum("source_model", [
   "unknown",
 ]);
 
+export const logoSourceEnum = pgEnum("logo_source", [
+  "official",
+  "favicon",
+  "google",
+  "hunter",
+  "duckduckgo",
+  "iconhorse",
+  "generated",
+  "unknown",
+]);
+
 export const resources = pgTable(
   "resources",
   {
@@ -72,6 +83,9 @@ export const resources = pgTable(
 
     name: text("name").notNull(),
     slug: text("slug").notNull(),
+
+    domain: text("domain"),
+
     tagline: text("tagline"),
     description: text("description"),
 
@@ -80,6 +94,15 @@ export const resources = pgTable(
     repositoryUrl: text("repository_url"),
 
     logoUrl: text("logo_url"),
+    logoStoragePath: text("logo_storage_path"),
+
+    logoSource: logoSourceEnum("logo_source")
+      .notNull()
+      .default("unknown"),
+
+    logoUpdatedAt: timestamp("logo_updated_at", {
+      withTimezone: true,
+    }),
 
     pricingModel: pricingModelEnum("pricing_model")
       .notNull()
@@ -123,6 +146,7 @@ export const resources = pgTable(
   },
   (table) => [
     uniqueIndex("resources_slug_unique").on(table.slug),
+    index("resources_domain_idx").on(table.domain),
     index("resources_type_idx").on(table.type),
     index("resources_status_idx").on(table.status),
     index("resources_pricing_model_idx").on(table.pricingModel),
