@@ -1,6 +1,5 @@
 import {
   and,
-  asc,
   count,
   desc,
   eq,
@@ -17,6 +16,17 @@ export type CategoryResourceSort =
   | "newest"
   | "popular"
   | "updated";
+
+export async function getActiveCategories() {
+  return db
+    .select()
+    .from(categories)
+    .where(eq(categories.isActive, true))
+    .orderBy(
+      categories.sortOrder,
+      categories.name,
+    );
+}
 
 function getCategoryResourceSort(
   sort: CategoryResourceSort = "newest",
@@ -105,4 +115,21 @@ export async function getPublishedResourcesByCategory(
     data,
     total: totalResult[0]?.count ?? 0,
   };
+}
+
+export async function getActiveCategoryBySlug(
+  slug: string,
+) {
+  const result = await db
+    .select()
+    .from(categories)
+    .where(
+      and(
+        eq(categories.slug, slug),
+        eq(categories.isActive, true),
+      ),
+    )
+    .limit(1);
+
+  return result[0] ?? null;
 }
