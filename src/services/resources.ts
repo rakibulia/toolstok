@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { resources } from "@/db/schema";
+import { indexResourceSearch } from "@/services/resource-search";
 import {
   createResourceSchema,
   type CreateResourceInput,
@@ -43,6 +44,12 @@ export async function createResource(
       status: "draft",
     })
     .returning();
+
+  if (!resource) {
+    throw new Error("Failed to create resource.");
+  }
+
+  await indexResourceSearch(resource);
 
   return resource;
 }

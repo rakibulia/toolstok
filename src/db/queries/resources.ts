@@ -3,12 +3,14 @@ import {
   count,
   desc,
   eq,
-  ilike,
-  or,
+  sql,
 } from "drizzle-orm";
 
 import { db } from "@/db";
-import { resources } from "@/db/schema";
+import {
+  resourceSearch,
+  resources,
+} from "@/db/schema";
 
 export type ResourceListFilters = {
   search?: string;
@@ -19,6 +21,14 @@ export type ResourceListFilters = {
 };
 
 export type ResourceSort = "newest" | "popular" | "updated";
+
+function normalizeSearchQuery(search: string): string {
+  return search
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s_-]/gu, " ")
+    .trim();
+}
 
 function buildPublishedResourceConditions(
   filters: ResourceListFilters = {},
@@ -49,18 +59,6 @@ function buildPublishedResourceConditions(
     );
   }
 
-  if (filters.search?.trim()) {
-    const search = `%${filters.search.trim()}%`;
-
-    conditions.push(
-      or(
-        ilike(resources.name, search),
-        ilike(resources.tagline, search),
-        ilike(resources.description, search),
-      )!,
-    );
-  }
-
   return and(...conditions);
 }
 
@@ -78,15 +76,48 @@ function getResourceSort(sort: ResourceSort = "newest") {
   }
 }
 
+function getSearchQuery(search: string) {
+  return sql`plainto_tsquery('english', ${search})`;
+}
+
 export async function getPublishedResources(
   filters: ResourceListFilters = {},
   sort: ResourceSort = "newest",
 ) {
+  const search = filters.search
+    ? normalizeSearchQuery(filters.search)
+    : "";
+
+  if (!search) {
+    return db
+      .select()
+      .from(resources)
+      .where(buildPublishedResourceConditions(filters))
+      .orderBy(getResourceSort(sort));
+  }
+
+  const conditions = buildPublishedResourceConditions({
+    ...filters,
+    search: undefined,
+  });
+
   return db
-    .select()
+    .select({
+      resource: resources,
+    })
     .from(resources)
-    .where(buildPublishedResourceConditions(filters))
-    .orderBy(getResourceSort(sort));
+    .innerJoin(
+      resourceSearch,
+      eq(resourceSearch.resourceId, resources.id),
+    )
+    .where(
+      and(
+        conditions,
+        sql`to_tsvector('english', ${resourceSearch.searchText}) @@ ${getSearchQuery(search)}`,
+      ),
+    )
+    .orderBy(getResourceSort(sort))
+    .then((rows) => rows.map((row) => row.resource));
 }
 
 export async function getPublishedResourcesPaginated(
@@ -95,14 +126,58 @@ export async function getPublishedResourcesPaginated(
   filters: ResourceListFilters = {},
   sort: ResourceSort = "newest",
 ) {
-  const conditions =
-    buildPublishedResourceConditions(filters);
+  const search = filters.search
+    ? normalizeSearchQuery(filters.search)
+    : "";
 
-  const [data, totalResult] = await Promise.all([
+  if (!search) {
+    const conditions =
+      buildPublishedResourceConditions(filters);
+
+    const [data, totalResult] = await Promise.all([
+      db
+        .select()
+        .from(resources)
+        .where(conditions)
+        .orderBy(getResourceSort(sort))
+        .limit(limit)
+        .offset(offset),
+
+      db
+        .select({
+          count: count(),
+        })
+        .from(resources)
+        .where(conditions),
+    ]);
+
+    return {
+      data,
+      total: totalResult[0]?.count ?? 0,
+    };
+  }
+
+  const conditions = buildPublishedResourceConditions({
+    ...filters,
+    search: undefined,
+  });
+
+  const searchCondition = sql`
+    to_tsvector('english', ${resourceSearch.searchText})
+    @@ ${getSearchQuery(search)}
+  `;
+
+  const [dataRows, totalResult] = await Promise.all([
     db
-      .select()
+      .select({
+        resource: resources,
+      })
       .from(resources)
-      .where(conditions)
+      .innerJoin(
+        resourceSearch,
+        eq(resourceSearch.resourceId, resources.id),
+      )
+      .where(and(conditions, searchCondition))
       .orderBy(getResourceSort(sort))
       .limit(limit)
       .offset(offset),
@@ -112,11 +187,15 @@ export async function getPublishedResourcesPaginated(
         count: count(),
       })
       .from(resources)
-      .where(conditions),
+      .innerJoin(
+        resourceSearch,
+        eq(resourceSearch.resourceId, resources.id),
+      )
+      .where(and(conditions, searchCondition)),
   ]);
 
   return {
-    data,
+    data: dataRows.map((row) => row.resource),
     total: totalResult[0]?.count ?? 0,
   };
 }

@@ -1,0 +1,1 @@
+CREATE INDEX "resource_search_search_text_fts_idx" ON "resource_search" USING gin (to_tsvector('english', "search_text"));
